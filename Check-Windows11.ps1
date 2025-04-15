@@ -83,10 +83,29 @@ function Get-SecureBootStatus {
     }
 }
 
-# UEFI
-function Get-UEFIMode {
-    $firmware = Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control" -Name "PEFirmwareType" -ErrorAction SilentlyContinue
-    return ($firmware.PEFirmwareType -eq 2)
+# 64-bit OS check
+function Is-64BitOS {
+    return [Environment]::Is64BitOperatingSystem
+}
+
+# Free disk space check
+function Get-FreeDiskSpace {
+    $systemDrive = $env:SystemDrive
+    $drive = Get-PSDrive -Name $systemDrive[0]
+    return [math]::Round($drive.Free / 1GB, 2)
+}
+
+# DirectX 12 support check
+function Has-DirectX12Support {
+    try {
+        $dxdiag = Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\DirectX" -Name "Version" -ErrorAction SilentlyContinue
+        if ($dxdiag -and $dxdiag.Version -ge 12) {
+            return $true
+        }
+        return $false
+    } catch {
+        return $false
+    }
 }
 
 # CPU model
@@ -120,7 +139,9 @@ function Is-CPUSupported {
 $tpmVersion = Get-TPMVersion
 $ram = (Get-CimInstance -ClassName Win32_ComputerSystem).TotalPhysicalMemory / 1GB
 $secureBoot = Get-SecureBootStatus
-$uefi = Get-UEFIMode
+$is64Bit = Is-64BitOS
+$freeSpace = Get-FreeDiskSpace
+$directX12 = Has-DirectX12Support
 $cpuModel = Get-CPUModel
 $cpuSupported = Is-CPUSupported -cpuName $cpuModel
 
@@ -128,12 +149,14 @@ $cpuSupported = Is-CPUSupported -cpuName $cpuModel
 Write-Host "TPM Version: $tpmVersion"
 Write-Host "RAM: $([math]::Round($ram, 2)) GB"
 Write-Host "Secure Boot: $secureBoot"
-Write-Host "UEFI: $uefi"
+Write-Host "64-bit OS: $is64Bit"
+Write-Host "Free Disk Space: $freeSpace GB"
+Write-Host "DirectX 12 Support: $directX12"
 Write-Host "CPU Model: $cpuModel"
 Write-Host "CPU Supported: $cpuSupported"
 
 # Decision
-if ($tpmVersion -like "2.*" -and $ram -ge 4 -and $secureBoot -eq $true -and $uefi -eq $true -and $cpuSupported -eq $true) {
+if ($tpmVersion -like "2.*" -and $ram -ge 4 -and $secureBoot -eq $true -and $is64Bit -eq $true -and $freeSpace -ge 64 -and $directX12 -eq $true -and $cpuSupported -eq $true) {
     Write-Host "✅ Computer is compatible with Windows 11."
     exit 0
 } else {
