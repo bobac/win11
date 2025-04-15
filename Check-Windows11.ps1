@@ -3,6 +3,32 @@ $intelFile = ".\intel.txt"
 $amdFile = ".\amd.txt"
 $qualcommFile = ".\qualcomm.txt"
 
+# Check if already running Windows 11
+function Is-Windows11 {
+    try {
+        $osInfo = Get-CimInstance -ClassName Win32_OperatingSystem
+        $osVersion = $osInfo.Version
+        $osName = $osInfo.Caption
+
+        if ($osName -like "*Windows 11*" -or 
+            ($osVersion -like "10.0.*" -and [int]($osVersion.Split(".")[2]) -ge 22000)) {
+            return $true
+        } else {
+            return $false
+        }
+    } catch {
+        Write-Host "Error detecting OS version: $($_.Exception.Message)"
+        return $false
+    }
+}
+
+# If already running Windows 11, skip all checks and consider it compatible
+if (Is-Windows11) {
+    Write-Host "Detected Windows 11. System is already compatible."
+    Write-Host "[v] Computer is compatible with Windows 11."
+    exit 0
+}
+
 # Links to official lists
 $intelUrl = "https://learn.microsoft.com/en-us/windows-hardware/design/minimum/supported/windows-11-supported-intel-processors"
 $amdUrl = "https://learn.microsoft.com/en-us/windows-hardware/design/minimum/supported/windows-11-supported-amd-processors"
