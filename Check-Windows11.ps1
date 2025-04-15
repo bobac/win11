@@ -74,6 +74,7 @@ function Download-CPUList {
     }
 }
 
+Write-Host "Downloading processor lists..."
 # Download lists
 $intelDownloaded = Download-CPUList -url $intelUrl -path $intelFile
 $amdDownloaded = Download-CPUList -url $amdUrl -path $amdFile
@@ -220,9 +221,9 @@ Write-Host "CPU Supported: $cpuSupported"
 
 # Decision
 if ($tpmVersion -like "2.*" -and $ram -ge 4 -and $secureBoot -eq $true -and $is64Bit -eq $true -and $freeSpace -ge 64 -and $directX12 -eq $true -and $cpuSupported -eq $true) {
-    Write-Host "✅ Computer is compatible with Windows 11."
+    Write-Host "[v] Computer is compatible with Windows 11."
     exit 0
 } else {
-    Write-Host "❌ Computer is not compatible with Windows 11."
+    Write-Host "[x] Computer is not compatible with Windows 11."
     exit 1001
 }
