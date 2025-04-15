@@ -1,9 +1,9 @@
-# Cesty k lokálním souborům se seznamy
+# Paths to local files with lists
 $intelFile = ".\intel.txt"
 $amdFile = ".\amd.txt"
 $qualcommFile = ".\qualcomm.txt"
 
-# Odkazy na oficiální seznamy
+# Links to official lists
 $intelUrl = "https://learn.microsoft.com/en-us/windows-hardware/design/minimum/supported/windows-11-supported-intel-processors"
 $amdUrl = "https://learn.microsoft.com/en-us/windows-hardware/design/minimum/supported/windows-11-supported-amd-processors"
 $qualcommUrl = "https://learn.microsoft.com/en-us/windows-hardware/design/minimum/supported/windows-11-supported-qualcomm-processors"
@@ -14,7 +14,7 @@ function Download-CPUList {
         [string]$path
     )
     try {
-        Write-Host "Stahuji $url..."
+        Write-Host "Downloading $url..."
         $html = Invoke-WebRequest -Uri $url -UseBasicParsing
         $lines = $html.Content -split "`n" | 
             Where-Object { $_ -match '<td[^>]*>(.*?)</td>' } |
@@ -23,53 +23,53 @@ function Download-CPUList {
                     $matches[1].Trim()
                 }
             }
-        # Filtrujeme pouze řádky obsahující model procesoru (čísla a písmena)
+        # Filter only lines containing processor model (numbers and letters)
         $lines | Where-Object { $_ -match '[0-9]+[A-Za-z]*' } | Set-Content -Path $path
-        Write-Host "Uloženo do $path"
+        Write-Host "Saved to $path"
         return $true
     } catch {
-        Write-Host "Chyba při stahování ${url}: $($_.Exception.Message)"
+        Write-Host "Error downloading ${url}: $($_.Exception.Message)"
         return $false
     }
 }
 
-# Stažení seznamů
+# Download lists
 $intelDownloaded = Download-CPUList -url $intelUrl -path $intelFile
 $amdDownloaded = Download-CPUList -url $amdUrl -path $amdFile
 $qualcommDownloaded = Download-CPUList -url $qualcommUrl -path $qualcommFile
 
-# Kontrola a použití existujících souborů v případě selhání stahování
+# Check and use existing files if download fails
 if (-not $intelDownloaded -and (Test-Path $intelFile) -and (Get-Item $intelFile).Length -gt 0) {
-    Write-Host "Používám existující soubor $intelFile"
+    Write-Host "Using existing file $intelFile"
 }
 if (-not $amdDownloaded -and (Test-Path $amdFile) -and (Get-Item $amdFile).Length -gt 0) {
-    Write-Host "Používám existující soubor $amdFile"
+    Write-Host "Using existing file $amdFile"
 }
 if (-not $qualcommDownloaded -and (Test-Path $qualcommFile) -and (Get-Item $qualcommFile).Length -gt 0) {
-    Write-Host "Používám existující soubor $qualcommFile"
+    Write-Host "Using existing file $qualcommFile"
 }
 
-# Kontrola, zda máme alespoň jeden platný soubor
+# Check if we have at least one valid file
 if (-not (Test-Path $intelFile) -or (Get-Item $intelFile).Length -eq 0) {
-    Write-Host "Chyba: Nelze získat seznam Intel procesorů"
+    Write-Host "Error: Cannot get Intel processor list"
     exit 1
 }
 if (-not (Test-Path $amdFile) -or (Get-Item $amdFile).Length -eq 0) {
-    Write-Host "Chyba: Nelze získat seznam AMD procesorů"
+    Write-Host "Error: Cannot get AMD processor list"
     exit 1
 }
 if (-not (Test-Path $qualcommFile) -or (Get-Item $qualcommFile).Length -eq 0) {
-    Write-Host "Chyba: Nelze získat seznam Qualcomm procesorů"
+    Write-Host "Error: Cannot get Qualcomm processor list"
     exit 1
 }
 
-# TPM verze
+# TPM version
 function Get-TPMVersion {
     $tpm = Get-CimInstance -Namespace "Root\CIMv2\Security\MicrosoftTpm" -ClassName Win32_Tpm -ErrorAction SilentlyContinue
     if ($tpm -and $tpm.SpecVersion) {
         return $tpm.SpecVersion
     } else {
-        return "Není detekováno"
+        return "Not detected"
     }
 }
 
@@ -95,19 +95,19 @@ function Get-CPUModel {
     return $cpu.Name
 }
 
-# Podpora CPU
+# CPU support
 function Is-CPUSupported {
     param (
         [string]$cpuName
     )
-    # Extrahujeme model procesoru z celého názvu
+    # Extract processor model from full name (e.g., "i5-1135G7" from "11th Gen Intel(R) Core(TM) i5-1135G7 @ 2.40GHz")
     $cpuModel = $cpuName -replace '.*(i[0-9]-[0-9]+[A-Za-z]*).*', '$1'
     
     $intelList = Get-Content -Path $intelFile
     $amdList = Get-Content -Path $amdFile
     $qualcommList = Get-Content -Path $qualcommFile
 
-    # Kontrolujeme přesnou shodu modelu
+    # Check if the extracted model is in any of the lists
     foreach ($line in $intelList + $amdList + $qualcommList) {
         if ($line -eq $cpuModel) {
             return $true
@@ -116,7 +116,7 @@ function Is-CPUSupported {
     return $false
 }
 
-# Kontroly
+# Checks
 $tpmVersion = Get-TPMVersion
 $ram = (Get-CimInstance -ClassName Win32_ComputerSystem).TotalPhysicalMemory / 1GB
 $secureBoot = Get-SecureBootStatus
@@ -124,19 +124,19 @@ $uefi = Get-UEFIMode
 $cpuModel = Get-CPUModel
 $cpuSupported = Is-CPUSupported -cpuName $cpuModel
 
-# Výstup
-Write-Host "Verze TPM: $tpmVersion"
+# Output
+Write-Host "TPM Version: $tpmVersion"
 Write-Host "RAM: $([math]::Round($ram, 2)) GB"
 Write-Host "Secure Boot: $secureBoot"
 Write-Host "UEFI: $uefi"
-Write-Host "Model CPU: $cpuModel"
-Write-Host "CPU podporován: $cpuSupported"
+Write-Host "CPU Model: $cpuModel"
+Write-Host "CPU Supported: $cpuSupported"
 
-# Rozhodnutí
+# Decision
 if ($tpmVersion -like "2.*" -and $ram -ge 4 -and $secureBoot -eq $true -and $uefi -eq $true -and $cpuSupported -eq $true) {
-    Write-Host "✅ Počítač je kompatibilní s Windows 11."
+    Write-Host "✅ Computer is compatible with Windows 11."
     exit 0
 } else {
-    Write-Host "❌ Počítač není kompatibilní s Windows 11."
+    Write-Host "❌ Computer is not compatible with Windows 11."
     exit 1001
 }
