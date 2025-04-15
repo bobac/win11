@@ -39,16 +39,16 @@ G6900
 G6900E
 G6900T
 G6900TE
-J4005<sup>[2]</sup>
+J4005
 J4025
-J4105<sup>[2]</sup>
-J4115<sup>[2]</sup>
+J4105
+J4115
 J4125
 J6412
 J6413
-N4000<sup>[2]</sup>
+N4000
 N4020
-N4100<sup>[2]</sup>
+N4100
 N4120
 N4500
 N4505
@@ -390,7 +390,7 @@ i7-14700K
 i7-14700KF
 i7-14700T
 i7-7800X
-i7-7820HQ<sup>[1]</sup>
+i7-7820HQ
 i7-7820X
 i7-8086K
 i7-8500Y
@@ -546,9 +546,9 @@ Gold G7400T
 Gold G7400TE
 J6426
 N6415
-Silver J5005<sup>[2]</sup>
+Silver J5005
 Silver J5040
-Silver N5000<sup>[2]</sup>
+Silver N5000
 Silver N5030
 Silver N6000
 Silver N6005

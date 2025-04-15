@@ -15,20 +15,61 @@ function Download-CPUList {
     )
     try {
         Write-Host "Downloading $url..."
-        $html = Invoke-WebRequest -Uri $url -UseBasicParsing
-        $lines = $html.Content -split "`n" | 
-            Where-Object { $_ -match '<td[^>]*>(.*?)</td>' } |
-            ForEach-Object {
-                if ($_ -match '<td[^>]*>(.*?)</td>') {
-                    $matches[1].Trim()
+        $htmlContent = (Invoke-WebRequest -Uri $url -UseBasicParsing).Content
+
+        # Regex to find table rows and extract the 3rd TD content
+        # (?s) - single line mode, . matches newline
+        # <tr>.*? - match <tr> and anything lazily
+        # <td[^>]*>.*?</td>.*? - match first TD and content
+        # <td[^>]*>.*?</td>.*? - match second TD and content
+        # <td[^>]*>(.*?)</td> - match third TD and CAPTURE its content
+        # .*?</tr> - match anything lazily until </tr>
+        $regex = [regex]'(?s)<tr>.*?<td[^>]*>.*?</td>.*?<td[^>]*>.*?</td>.*?<td[^>]*>(.*?)</td>.*?</tr>'
+        $matches = $regex.Matches($htmlContent)
+
+        if ($matches.Count -eq 0) {
+            Write-Host "Error processing ${url}: Could not find matching table data using primary regex. No fallback attempted."
+            return $false
+        }
+
+        $models = $matches | ForEach-Object {
+            try {
+                $modelText = $_.Groups[1].Value # Access Group 1
+                if ($null -eq $modelText) {
+                    # Write-Host "Warning: Regex matched row, but Group 1 is null. Row HTML: $($_.Value)" # Optional debug
+                    return $null # Skip this match
                 }
+                $modelText = $modelText.Trim()
+                # Clean up potential HTML tags like <sup>[1]</sup> or other formatting
+                $modelText = $modelText -replace '<[^>]+>', ''
+                # Further cleanup - removes things like [1] or [2]
+                $modelText = $modelText -replace '\[\d+\]', ''
+                $modelText.Trim() # Trim again after replacements
+            } catch {
+                Write-Host "Error processing a specific match: $($_.Exception.Message). Match value: $($_.Value)"
+                return $null # Skip this match on error
             }
-        # Filter only lines containing processor model (numbers and letters)
-        $lines | Where-Object { $_ -match '[0-9]+[A-Za-z]*' } | Set-Content -Path $path
+        }
+
+        # Filter out empty lines or header rows more carefully
+        $filteredModels = $models | Where-Object {
+            $_ -ne $null -and
+            $_.Trim() -ne '' -and
+            $_ -ne 'Model' -and # Explicitly exclude header
+            $_ -notmatch '^\s*$' # Ensure it's not just whitespace
+        }
+
+        if ($filteredModels.Count -eq 0) {
+             Write-Host "Error processing ${url}: Primary regex found rows, but filtering resulted in an empty list."
+             return $false
+        }
+
+        $filteredModels | Set-Content -Path $path
+
         Write-Host "Saved to $path"
         return $true
     } catch {
-        Write-Host "Error downloading ${url}: $($_.Exception.Message)"
+        Write-Host "Error downloading or processing ${url}: $($_.Exception.Message)"
         return $false
     }
 }
@@ -119,16 +160,41 @@ function Is-CPUSupported {
     param (
         [string]$cpuName
     )
-    $intelList = Get-Content -Path $intelFile
-    $amdList = Get-Content -Path $amdFile
-    $qualcommList = Get-Content -Path $qualcommFile
+    
+    $listToSearch = $null
+    $manufacturer = "Unknown"
 
-    # Check if any supported model is contained in the CPU name
-    foreach ($line in $intelList + $amdList + $qualcommList) {
-        if ($cpuName -like "*$line*") {
-            return $true
+    # Determine manufacturer and select the correct list
+    if ($cpuName -match 'Intel') {
+        $manufacturer = "Intel"
+        $listToSearch = Get-Content -Path $intelFile -ErrorAction SilentlyContinue
+    } elseif ($cpuName -match 'AMD') {
+        $manufacturer = "AMD"
+        $listToSearch = Get-Content -Path $amdFile -ErrorAction SilentlyContinue
+    } elseif ($cpuName -match 'Qualcomm') {
+        # Qualcomm detection might need refinement based on actual CPU names
+        $manufacturer = "Qualcomm"
+        $listToSearch = Get-Content -Path $qualcommFile -ErrorAction SilentlyContinue
+    }
+
+    if ($null -eq $listToSearch) {
+        Write-Host "Warning: Could not determine CPU manufacturer or read the corresponding list for '$cpuName'. Assuming not supported."
+        return $false
+    }
+
+    Write-Host "Debug: Checking CPU '$cpuName' against $manufacturer list."
+
+    # Check if any line (full model name) from the selected list is contained in the CPU name
+    foreach ($line in $listToSearch) {
+        $trimmedLine = $line.Trim()
+        if ($trimmedLine -ne '') {
+            if ($cpuName -like "*$trimmedLine*") {
+                # Write-Host "Debug: Match found! CPU Name '$cpuName' contains list entry '$trimmedLine'"
+                return $true
+            }
         }
     }
+    # Write-Host "Debug: No match found for CPU Name '$cpuName' in the $manufacturer list."
     return $false
 }
 
