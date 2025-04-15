@@ -1,0 +1,15 @@
+Snapdragon 850<sup>[1]</sup>
+Snapdragon 7c
+Snapdragon 7c Gen 2
+Snapdragon 7c+ Gen 3
+Snapdragon 8c
+Snapdragon 8cx
+Snapdragon 8cx Gen 2
+Snapdragon 8cx Gen 3
+QCM6490
+QCS6490
+QCM5430
+QCS5430
+Microsoft SQ1
+Microsoft SQ2
+Microsoft SQ3
