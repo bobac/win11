@@ -119,16 +119,13 @@ function Is-CPUSupported {
     param (
         [string]$cpuName
     )
-    # Extract processor model from full name (e.g., "i5-1135G7" from "11th Gen Intel(R) Core(TM) i5-1135G7 @ 2.40GHz")
-    $cpuModel = $cpuName -replace '.*(i[0-9]-[0-9]+[A-Za-z]*).*', '$1'
-    
     $intelList = Get-Content -Path $intelFile
     $amdList = Get-Content -Path $amdFile
     $qualcommList = Get-Content -Path $qualcommFile
 
-    # Check if the extracted model is in any of the lists
+    # Check if any supported model is contained in the CPU name
     foreach ($line in $intelList + $amdList + $qualcommList) {
-        if ($line -eq $cpuModel) {
+        if ($cpuName -like "*$line*") {
             return $true
         }
     }
